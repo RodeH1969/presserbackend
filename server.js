@@ -1,10 +1,25 @@
 #!/usr/bin/env node
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import { judgeOneSubmission } from './judge-one-submission.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const allowedOrigin = 'https://thepresserfrontend.onrender.com';
+
+app.use(cors({
+  origin: allowedOrigin,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
+app.options('*', cors({
+  origin: allowedOrigin,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
 
 app.use(express.json({ limit: '2mb' }));
 
