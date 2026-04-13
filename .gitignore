@@ -1,0 +1,7 @@
+.env
+node_modules/
+output/
+.env
+secrets.txt
+node_modules/
+output/

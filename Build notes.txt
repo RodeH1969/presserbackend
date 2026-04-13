@@ -1,0 +1,256 @@
+THE PRESSER 2 – BUILD NOTES
+===========================
+
+Project structure
+
+Root folder:
+
+run-presser-full.js – main Node script (ES module).
+
+.env – contains OPENAI_API_KEY, ELEVENLABS_API_KEY, and judge voice IDs.
+
+assets/ – background and portraits:
+
+thepressserchair.jpg
+
+Caty.jpeg
+
+Den.jpeg
+
+Tess.jpeg
+
+input/ – raw contestant video(s), e.g. test.mp4.
+
+input.mp4 – working input copied from input\test.mp4.
+
+output/ – all generated artifacts:
+
+contestant-transcript.txt
+
+<judge>-score.json
+
+<judge>-script.txt
+
+<judge>.mp3
+
+<judge>-dramatic.mp4
+
+final-score-card.mp4
+
+round1-judges.mp4
+
+run-summary.json
+
+Environment and dependencies
+
+Node project uses ES modules: "type": "module" in package.json.
+
+Dependencies:
+
+openai
+
+dotenv
+
+.env is loaded via:
+
+import 'dotenv/config';
+
+Required external tools:
+
+ffmpeg
+
+ffprobe
+
+Key decisions
+
+Single-question format
+
+Only one question in the round.
+
+Each judge gives one score out of 11.
+
+Maximum total score is 33.
+
+Judge scoring model
+
+Instead of a 7‑criterion rubric and a total out of 70, each judge now:
+
+Gets their own JSON object with:
+
+score (0–11)
+
+reason
+
+headline
+
+Their score is independent; there is no shared multi-criterion card per judge.
+
+Judge critiques
+
+Each judge has a distinct persona:
+
+Caty – warm, supportive, emotionally intelligent.
+
+Den – sharp, theatrical, cutting but entertaining.
+
+Tess – calm, analytical, precise.
+
+Each critique:
+
+About 30–42 words (≈15 seconds).
+
+Has one clear strength and one improvement.
+
+Must end with the exact sentence:
+"I gave you X." (where X is the integer score 0–11).
+
+Timing and length
+
+Remarks shortened from ~30s to ~15s by tightening word count.
+
+This applies to all judges, matching the desired pacing.
+
+Visual design – per‑judge segment
+
+Base layout:
+
+thepressserchair.jpg scaled to 1280×720.
+
+Portrait on the top‑right as a cropped square.
+
+Background audio waveform bar along the bottom.
+
+On‑screen text (always visible during segment):
+
+Judge name (top‑left).
+
+Short “headline” line under the name (judge‑specific).
+
+Dramatic score reveal:
+
+Big numeric score (e.g. 7) appears near the end of the audio.
+
+Small /11 just to the right of the big number.
+
+A verdict line along the lower third, e.g.
+DEN GAVE YOU 7/11.
+
+The score and verdict are hidden at first, then:
+
+Fade/scale in for the last ≈2–3 seconds of the judge’s clip.
+
+Achieved via FFmpeg drawtext with:
+
+enable='gte(t, reveal_start)'
+
+alpha= expression that ramps up and (optionally) down over time.
+
+Final scorecard
+
+After all judge segments, an additional short clip is generated:
+
+Background: same chair image.
+
+Title: TOTAL SCORE.
+
+Huge central text: <total>/33 (e.g. 21/33).
+
+Sub‑caption reflects how strong the total is
+(e.g. “A commanding finish.” vs “A tough room tonight.”).
+
+This final card is concatenated after the three judge videos.
+
+Output video
+
+All judge clips plus the final scorecard are concatenated (ffmpeg concat).
+
+Final file: output/round1-judges.mp4.
+
+Cleanup and safety
+
+It is safe to delete contents of output/ between runs; the pipeline recreates all artifacts.
+
+We fixed a bug where a PowerShell here‑string wrapper ($code = @' / '@) was accidentally written into run-presser-full.js.
+
+Top: removed first line.
+
+Bottom: removed last two trailing here‑string lines.
+
+From now on, we:
+
+Edit the JS file directly rather than pasting PowerShell into it.
+
+Use a “one command at a time, then paste output” workflow to avoid subtle mistakes.
+
+High‑level pipeline
+
+Input & checks
+
+Confirm input.mp4, background image, and each judge portrait exist.
+
+Transcription
+
+Use OpenAI audio model to transcribe input.mp4 into text.
+
+Per‑judge scoring
+
+For each judge:
+
+Call the model with judge persona + transcript + topic.
+
+Receive score (0–11), reason, headline.
+
+Per‑judge script generation
+
+For each judge:
+
+Generate a short spoken critique ending with "I gave you X.".
+
+Audio synthesis
+
+For each judge:
+
+Send critique text to ElevenLabs with the judge’s voice ID.
+
+Save .mp3 file per judge.
+
+Per‑judge video render
+
+For each judge:
+
+Use ffmpeg to:
+
+loop background chair image,
+
+overlay judge portrait,
+
+draw waveform,
+
+draw always‑on name + headline,
+
+add timed big score reveal (X/11 + verdict line).
+
+Final total card
+
+Compute totalScore = sum of judge scores.
+
+Create final scorecard (totalScore/33) with its own short video.
+
+Concatenation
+
+Concatenate all judge videos + final card into round1-judges.mp4.
+
+Summary file
+
+Write run-summary.json with:
+
+input path,
+
+topic,
+
+per‑judge scores + headlines + reasons,
+
+total score and max,
+
+final video path.
+

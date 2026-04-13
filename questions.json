@@ -1,0 +1,22 @@
+﻿{
+  "questions": [
+    {
+      "id": 1,
+      "label": "Vocabulary",
+      "prompt": "Define the word 'resplendent' and use it correctly in a sentence.",
+      "rubric": "Resplendent means strikingly beautiful or impressive, often through brilliant colour, richness, or radiance. Best answers make the word feel inevitable, not inserted. Best sentences have a who, a moment, and a feeling. 9-11: beautiful or surprising; precise definition; vivid, memorable sentence. 7-8: specific, vivid, well-constructed; accurate definition with confidence. 5-6: correct and clear but workmanlike. 3-4: generic or flat; only partially captures the word. 1-2: vague, awkward, or barely correct. 0: wrong or not attempted."
+    },
+    {
+      "id": 2,
+      "label": "Current Event",
+      "prompt": "Explain what is happening with the petrol shortages in Australia right now.",
+      "rubric": "Key cause: strikes on Iran triggered retaliation, and Iran closed the Strait of Hormuz, which carries a large share of global oil. Australia is vulnerable because it imports most refined fuel and has weak reserves. Local impact: empty service stations, higher prices, regional communities hit hardest. Government response: emergency reserves, temporary fuel standards changes, international coordination. Best answers open with a sharp human hook, then explain cause, vulnerability, impact, response, and a clear so-what. 9-11: strong hook, human stakes, coherent arc, confident writing. 7-8: cause, impact, and response explained clearly with momentum. 5-6: adequate explanation, more factual than vivid. 3-4: thin or confused explanation. 1-2: surface-level or significantly wrong. 0: irrelevant or not attempted."
+    },
+    {
+      "id": 3,
+      "label": "Process",
+      "prompt": "How do you make scrambled eggs?",
+      "rubric": "Key technique: low heat, gentle folding, remove from heat before fully done so the pan finishes the cooking. Strong answers have a point of view and sound like advice from someone who actually cooks. Best answers use rhythm, confidence, and personality. 9-11: hook or strong opinion, clear method, technique nuance, memorable voice. 7-8: confident and useful, strong cooking feel, maybe less flair. 5-6: correct and clear, mostly functional. 3-4: basic steps with little nuance. 1-2: confused or missing key steps. 0: incorrect or not attempted."
+    }
+  ]
+}
