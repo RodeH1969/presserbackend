@@ -5,7 +5,6 @@ import { judgeOneSubmission } from './judge-one-submission.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.JUDGE_API_KEY || '';
 
 app.use(express.json({ limit: '2mb' }));
 
@@ -15,14 +14,6 @@ app.get('/health', (_req, res) => {
 
 app.post('/judge-submission', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization || '';
-    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    const providedKey = bearer || req.headers['x-api-key'] || '';
-
-    if (!API_KEY || providedKey !== API_KEY) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const { submissionId } = req.body || {};
 
     if (!submissionId || typeof submissionId !== 'string') {
