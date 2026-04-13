@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { supabaseAdmin } from './supabase-client.js';
-import { sendRoundResultEmail } from './email-client.js';
+import { sendResultEmail } from './email-client.js';
 
 const ROOT = process.cwd();
 const OUTPUT = path.join(ROOT, 'output');
@@ -182,16 +182,14 @@ export async function judgeOneSubmission(submissionId) {
 
   if (submission.email) {
     console.log('6) Sending result email...');
-    await sendRoundResultEmail({
-      to: submission.email,
-      tagName: submission.tag || submission.mobile || 'Contestant',
-      round,
-      passed,
-      score: totalScore,
-      maxScore,
-      judgesVideoUrl: signedJudgeVideoUrl,
-      nextQuestionUrl
-    });
+    await sendResultEmail({
+  to: submission.email,
+  round,
+  totalScore,
+  maxScore,
+  videoUrl: signedJudgeVideoUrl,
+  nextQuestionUrl
+});
 
     await supabaseAdmin
       .from('submissions')
