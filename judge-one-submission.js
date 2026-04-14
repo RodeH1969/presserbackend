@@ -119,19 +119,19 @@ export async function judgeOneSubmission(attemptId) {
 
   console.log('5) Updating attempts row with scores and result...');
   const { error: updateError } = await supabaseAdmin
-    .from('attempts')
-    .update({
-      judge_1_score: summary.judge_1_score ?? null,
-      judge_2_score: summary.judge_2_score ?? null,
-      judge_3_score: summary.judge_3_score ?? null,
-      total_score: totalScore,
-      passed,
-      result_summary: summary.result_summary ?? null,
-      result_video_url: signedJudgeVideoUrl,
-      status: passed ? 'judged_passed' : 'judged_failed',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', attempt.id);
+  .from('attempts')
+  .update({
+    judge_1_score: summary.judge_1_score ?? null,
+    judge_2_score: summary.judge_2_score ?? null,
+    judge_3_score: summary.judge_3_score ?? null,
+    total_score: totalScore,
+    passed,
+    result_summary: summary.result_summary ?? null,
+    result_video_url: signedJudgeVideoUrl,
+    status: 'judged',
+    updated_at: new Date().toISOString()
+  })
+  .eq('id', attempt.id);
 
   if (updateError) throw updateError;
 
