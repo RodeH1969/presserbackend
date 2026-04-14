@@ -10,8 +10,9 @@ const ROOT = process.cwd();
 const OUTPUT = path.join(ROOT, 'output');
 fs.mkdirSync(OUTPUT, { recursive: true });
 
-const INPUT_BUCKET = process.env.SUPABASE_INPUT_BUCKET || 'the-presser-input';
-const OUTPUT_BUCKET = process.env.SUPABASE_OUTPUT_BUCKET || 'the-presser-output';
+// Hardcode the real bucket name from Supabase Storage
+const INPUT_BUCKET = 'recordings';
+const OUTPUT_BUCKET = 'recordings';
 
 function runNodeScript(script, args = []) {
   return new Promise((resolve, reject) => {
@@ -29,9 +30,9 @@ function runNodeScript(script, args = []) {
   });
 }
 
-async function downloadFromStorage(bucket, storagePath, localPath) {
+async function downloadFromStorage(storagePath, localPath) {
   const { data, error } = await supabaseAdmin.storage
-    .from(bucket)
+    .from(INPUT_BUCKET)
     .download(storagePath);
 
   if (error) throw error;
@@ -81,8 +82,6 @@ export async function judgeOneSubmission(attemptId) {
   const questionKey = `round${round}`;
 
   const inputStoragePath = attempt.recording_path;
-  const inputBucket = attempt.recording_bucket || INPUT_BUCKET;
-
   if (!inputStoragePath) {
     throw new Error(`No recording_path found for attempt ${attempt.id}`);
   }
@@ -90,7 +89,7 @@ export async function judgeOneSubmission(attemptId) {
   const localInput = path.join(OUTPUT, `${attempt.id}-input.webm`);
 
   console.log('1) Downloading contestant submission from Storage...');
-  await downloadFromStorage(inputBucket, inputStoragePath, localInput);
+  await downloadFromStorage(inputStoragePath, localInput);
 
   console.log('2) Running judging pipeline...');
   await runNodeScript('run-presser-full.js', [localInput, questionKey]);
@@ -143,13 +142,9 @@ export async function judgeOneSubmission(attemptId) {
     nextQuestionUrl = 'https://thepresserfrontend.onrender.com/question.html?round=3';
   }
 
-  if (attempt.contestant_id) {
-    console.log('6) Sending result email (if contestant email available elsewhere)...');
-    // You likely store the contestant email in another table keyed by contestant_id.
-    // For now we skip direct email if this table doesn't have email.
-  } else {
-    console.log('No contestant_id/email info on attempt row for email send.');
-  }
+  // NOTE: attempts table doesn’t have an email column in the CSV you sent,
+  // so we skip email send for now. Once we know where contestant email lives,
+  // we can join on contestant_id and call sendResultEmail here.
 
   return {
     attemptId: attempt.id,
