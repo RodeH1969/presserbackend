@@ -66,7 +66,6 @@ async function createSignedOutputUrl(storagePath, expiresIn = 60 * 60 * 24 * 7) 
 export async function judgeOneSubmission(attemptId) {
   console.log(`Judging attempt ${attemptId}...`);
 
-  // 1) Load attempt row from attempts table
   const { data: attempt, error: loadError } = await supabaseAdmin
     .from('attempts')
     .select('*')
@@ -77,6 +76,22 @@ export async function judgeOneSubmission(attemptId) {
   if (!attempt) throw new Error(`Attempt not found: ${attemptId}`);
 
   console.log('Loaded attempt:', attempt);
+
+  let contestant = null;
+  if (attempt.contestant_id) {
+    const { data: contestantRow, error: contestantError } = await supabaseAdmin
+      .from('contestants')
+      .select('*')
+      .eq('id', attempt.contestant_id)
+      .single();
+
+    if (contestantError) {
+      console.error('Failed to load contestant for email:', contestantError);
+    } else {
+      contestant = contestantRow;
+      console.log('Loaded contestant:', contestant);
+    }
+  }
 
   const round = attempt.round_number || 1;
   const questionKey = `round${round}`;
@@ -119,19 +134,19 @@ export async function judgeOneSubmission(attemptId) {
 
   console.log('5) Updating attempts row with scores and result...');
   const { error: updateError } = await supabaseAdmin
-  .from('attempts')
-  .update({
-    judge_1_score: summary.judge_1_score ?? null,
-    judge_2_score: summary.judge_2_score ?? null,
-    judge_3_score: summary.judge_3_score ?? null,
-    total_score: totalScore,
-    passed,
-    result_summary: summary.result_summary ?? null,
-    result_video_url: signedJudgeVideoUrl,
-    status: 'judged',
-    updated_at: new Date().toISOString()
-  })
-  .eq('id', attempt.id);
+    .from('attempts')
+    .update({
+      judge_1_score: summary.judge_1_score ?? null,
+      judge_2_score: summary.judge_2_score ?? null,
+      judge_3_score: summary.judge_3_score ?? null,
+      total_score: totalScore,
+      passed,
+      result_summary: summary.result_summary ?? null,
+      result_video_url: signedJudgeVideoUrl,
+      status: 'judged',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', attempt.id);
 
   if (updateError) throw updateError;
 
@@ -142,12 +157,33 @@ export async function judgeOneSubmission(attemptId) {
     nextQuestionUrl = 'https://thepresserfrontend.onrender.com/question.html?round=3';
   }
 
-  // NOTE: attempts table doesn’t have an email column in the CSV you sent,
-  // so we skip email send for now. Once we know where contestant email lives,
-  // we can join on contestant_id and call sendResultEmail here.
+  if (contestant && contestant.email) {
+    console.log('6) Sending result email...');
+    await sendResultEmail({
+      to: contestant.email,
+      round,
+      totalScore,
+      maxScore,
+      videoUrl: signedJudgeVideoUrl,
+      nextQuestionUrl
+    });
+
+    await supabaseAdmin
+      .from('attempts')
+      .update({
+        email_status: 'sent',
+        email_sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', attempt.id);
+  } else {
+    console.log('No contestant email found, skipping email send.');
+  }
 
   return {
     attemptId: attempt.id,
+    contestantId: attempt.contestant_id || null,
+    contestantEmail: contestant?.email || null,
     round,
     passed,
     totalScore,
