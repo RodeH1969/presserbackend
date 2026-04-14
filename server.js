@@ -29,17 +29,17 @@ app.get('/health', (_req, res) => {
 
 app.post('/judge-submission', async (req, res) => {
   try {
-    const { submissionId } = req.body || {};
+    const { attemptId } = req.body || {};
 
-    if (!submissionId || typeof submissionId !== 'string') {
-      return res.status(400).json({ error: 'submissionId is required' });
+    if (!attemptId || typeof attemptId !== 'string') {
+      return res.status(400).json({ error: 'attemptId is required' });
     }
 
-    const result = await judgeOneSubmission(submissionId);
+    const result = await judgeOneSubmission(attemptId);
 
     return res.json({
       ok: true,
-      submissionId,
+      attemptId,
       result
     });
   } catch (err) {

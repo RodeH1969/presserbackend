@@ -29,9 +29,9 @@ function runNodeScript(script, args = []) {
   });
 }
 
-async function downloadFromStorage(storagePath, localPath) {
+async function downloadFromStorage(bucket, storagePath, localPath) {
   const { data, error } = await supabaseAdmin.storage
-    .from(INPUT_BUCKET)
+    .from(bucket)
     .download(storagePath);
 
   if (error) throw error;
@@ -62,65 +62,35 @@ async function createSignedOutputUrl(storagePath, expiresIn = 60 * 60 * 24 * 7) 
   return data.signedUrl;
 }
 
-function buildInputPath(submission) {
-  const round = submission.current_round || 1;
+export async function judgeOneSubmission(attemptId) {
+  console.log(`Judging attempt ${attemptId}...`);
 
-  if (round === 1 && submission.q1_path) return submission.q1_path;
-  if (round === 2 && submission.q2_path) return submission.q2_path;
-  if (round === 3 && submission.q3_path) return submission.q3_path;
-
-  throw new Error(`No input video path found for submission ${submission.id} round ${round}`);
-}
-
-function getRoundFieldNames(round) {
-  if (round === 1) {
-    return {
-      scoreField: 'q1_score_total',
-      passedField: 'passed_q1',
-      resultUrlField: 'q1_result_video_url',
-      emailSentField: 'email_sent_q1'
-    };
-  }
-  if (round === 2) {
-    return {
-      scoreField: 'q2_score_total',
-      passedField: 'passed_q2',
-      resultUrlField: 'q2_result_video_url',
-      emailSentField: 'email_sent_q2'
-    };
-  }
-  if (round === 3) {
-    return {
-      scoreField: 'q3_score_total',
-      passedField: 'passed_q3',
-      resultUrlField: 'q3_result_video_url',
-      emailSentField: 'email_sent_q3'
-    };
-  }
-  throw new Error(`Unsupported round ${round}`);
-}
-
-export async function judgeOneSubmission(submissionId) {
-  console.log(`Judging submission ${submissionId}...`);
-
-  const { data: submission, error: loadError } = await supabaseAdmin
-    .from('submissions')
+  // 1) Load attempt row from attempts table
+  const { data: attempt, error: loadError } = await supabaseAdmin
+    .from('attempts')
     .select('*')
-    .eq('id', submissionId)
+    .eq('id', attemptId)
     .single();
 
   if (loadError) throw loadError;
-  if (!submission) throw new Error(`Submission not found: ${submissionId}`);
+  if (!attempt) throw new Error(`Attempt not found: ${attemptId}`);
 
-  console.log('Loaded submission:', submission);
+  console.log('Loaded attempt:', attempt);
 
-  const round = submission.current_round || 1;
-  const questionKey = submission.question_key || `round${round}`;
-  const inputStoragePath = buildInputPath(submission);
-  const localInput = path.join(OUTPUT, `${submission.id}-input.mp4`);
+  const round = attempt.round_number || 1;
+  const questionKey = `round${round}`;
+
+  const inputStoragePath = attempt.recording_path;
+  const inputBucket = attempt.recording_bucket || INPUT_BUCKET;
+
+  if (!inputStoragePath) {
+    throw new Error(`No recording_path found for attempt ${attempt.id}`);
+  }
+
+  const localInput = path.join(OUTPUT, `${attempt.id}-input.webm`);
 
   console.log('1) Downloading contestant submission from Storage...');
-  await downloadFromStorage(inputStoragePath, localInput);
+  await downloadFromStorage(inputBucket, inputStoragePath, localInput);
 
   console.log('2) Running judging pipeline...');
   await runNodeScript('run-presser-full.js', [localInput, questionKey]);
@@ -140,7 +110,7 @@ export async function judgeOneSubmission(submissionId) {
     throw new Error('Final video not found after judging');
   }
 
-  const judgeVideoPath = `judged-videos/${submission.id}/round${round}-judges.mp4`;
+  const judgeVideoPath = `judged-videos/${attempt.id}/round${round}-judges.mp4`;
 
   console.log('3) Uploading judges video...');
   await uploadToStorage(judgeVideoPath, finalVideoLocal, 'video/mp4');
@@ -148,62 +118,41 @@ export async function judgeOneSubmission(submissionId) {
   console.log('4) Creating signed judges video URL...');
   const signedJudgeVideoUrl = await createSignedOutputUrl(judgeVideoPath);
 
-  const fields = getRoundFieldNames(round);
-
-  let nextRound = round;
-  if (passed && round < 3) nextRound = round + 1;
-
-  const updatePayload = {
-    judge_video_path: judgeVideoPath,
-    total_score: totalScore,
-    max_score: maxScore,
-    [fields.scoreField]: totalScore,
-    [fields.passedField]: passed,
-    [fields.resultUrlField]: signedJudgeVideoUrl,
-    [fields.emailSentField]: false,
-    current_round: nextRound,
-    updated_at: new Date().toISOString()
-  };
-
-  console.log('5) Updating submissions row...');
+  console.log('5) Updating attempts row with scores and result...');
   const { error: updateError } = await supabaseAdmin
-    .from('submissions')
-    .update(updatePayload)
-    .eq('id', submission.id);
+    .from('attempts')
+    .update({
+      judge_1_score: summary.judge_1_score ?? null,
+      judge_2_score: summary.judge_2_score ?? null,
+      judge_3_score: summary.judge_3_score ?? null,
+      total_score: totalScore,
+      passed,
+      result_summary: summary.result_summary ?? null,
+      result_video_url: signedJudgeVideoUrl,
+      status: passed ? 'judged_passed' : 'judged_failed',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', attempt.id);
 
   if (updateError) throw updateError;
 
   let nextQuestionUrl = '';
   if (passed && round === 1) {
-    nextQuestionUrl = `https://thepresserfrontend.onrender.com/question.html?submission_id=${submission.id}&round=2`;
+    nextQuestionUrl = 'https://thepresserfrontend.onrender.com/question.html?round=2';
   } else if (passed && round === 2) {
-    nextQuestionUrl = `https://thepresserfrontend.onrender.com/question.html?submission_id=${submission.id}&round=3`;
+    nextQuestionUrl = 'https://thepresserfrontend.onrender.com/question.html?round=3';
   }
 
-  if (submission.email) {
-    console.log('6) Sending result email...');
-    await sendResultEmail({
-  to: submission.email,
-  round,
-  totalScore,
-  maxScore,
-  videoUrl: signedJudgeVideoUrl,
-  nextQuestionUrl
-});
-
-    await supabaseAdmin
-      .from('submissions')
-      .update({
-        [fields.emailSentField]: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', submission.id);
+  if (attempt.contestant_id) {
+    console.log('6) Sending result email (if contestant email available elsewhere)...');
+    // You likely store the contestant email in another table keyed by contestant_id.
+    // For now we skip direct email if this table doesn't have email.
   } else {
-    console.log('No email on submission row, skipping email send.');
+    console.log('No contestant_id/email info on attempt row for email send.');
   }
 
   return {
-    submissionId: submission.id,
+    attemptId: attempt.id,
     round,
     passed,
     totalScore,
@@ -215,14 +164,14 @@ export async function judgeOneSubmission(submissionId) {
 }
 
 async function main() {
-  const submissionId = process.argv[2];
-  if (!submissionId) {
-    console.error('Usage: node judge-one-submission.js <submission-id>');
+  const attemptId = process.argv[2];
+  if (!attemptId) {
+    console.error('Usage: node judge-one-submission.js <attempt-id>');
     process.exit(1);
   }
 
   try {
-    const result = await judgeOneSubmission(submissionId);
+    const result = await judgeOneSubmission(attemptId);
     console.log('Done:', result);
   } catch (err) {
     console.error('judgeOneSubmission failed:', err);
