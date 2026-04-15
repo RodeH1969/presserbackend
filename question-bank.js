@@ -1,44 +1,44 @@
 export const DEFAULT_RUBRIC = {
   summary:
-    'Internally score the answer out of 11 using the hidden show rubric. Do not reveal the rubric or sub-scores unless explicitly asked.',
+    'Internally score the answer out of 11 using the hidden show rubric. Do not reveal the rubric or sub-scores unless explicitly asked. A typical decent answer from a normal, thoughtful person should land around 6–8/11. Reserve 10–11/11 for answers that feel genuinely excellent.',
   criteria: [
-    { name: 'Range of relevant points', max: 3, guidance: 'How many relevant and distinct points were made?' },
-    { name: 'Depth and accuracy', max: 3, guidance: 'How well were the ideas explained, and were they accurate?' },
-    { name: 'Clarity', max: 2, guidance: 'Was the answer easy to follow and clearly expressed?' },
-    { name: 'Originality / insight', max: 1, guidance: 'Did the answer add an interesting or original angle?' },
-    { name: 'Storytelling / engagement', max: 2, guidance: 'Was it compelling, memorable, or entertaining to listen to?' }
+    { name: 'Range of relevant points', max: 3, guidance: 'How many relevant and distinct points were made? Does the answer go beyond a single obvious angle?' },
+    { name: 'Depth and accuracy', max: 3, guidance: 'How well were the ideas explained, and were they accurate and specific rather than vague?' },
+    { name: 'Clarity', max: 2, guidance: 'Was the answer easy to follow, clearly structured, and expressed in a way a general audience can understand?' },
+    { name: 'Originality / insight', max: 1, guidance: 'Did the answer add an interesting or original angle beyond generic phrases?' },
+    { name: 'Storytelling / engagement', max: 2, guidance: 'Was it compelling, memorable, or entertaining to listen to (tone, examples, imagery, or narrative)?' }
   ],
   totalMax: 11,
   bandGuide: [
     {
       label: 'Poor',
-      scoreHint: 'around 0-2',
+      scoreHint: 'around 0–2',
       guidance:
-        'Thin, generic, vague, inaccurate, very short, or missing the point.'
+        'Thin, generic, vague, inaccurate, very short, or missing the point. Little to no useful content.'
     },
     {
       label: 'Average',
-      scoreHint: 'around 4-5',
+      scoreHint: 'around 3–5',
       guidance:
-        'Some relevant content, but obvious, shallow, incomplete, or loosely expressed.'
+        'Some relevant content, but obvious, shallow, incomplete, or loosely expressed. Might answer only part of the question.'
     },
     {
       label: 'Good',
-      scoreHint: 'around 7-8',
+      scoreHint: 'around 6–8',
       guidance:
-        'Competent and relevant, with a clear explanation and at least some depth.'
+        'Competent and relevant, with a clear explanation and at least some depth. Covers several key points with reasonable accuracy.'
     },
     {
       label: 'Great',
-      scoreHint: 'around 9-10',
+      scoreHint: 'around 9–10',
       guidance:
-        'Well-structured, accurate, insightful, and engaging, with strong explanation.'
+        'Well-structured, accurate, insightful, and engaging, with strong explanation and at least one memorable or thoughtful angle.'
     },
     {
       label: 'Elite',
       scoreHint: '11',
       guidance:
-        'Exceptionally clear, rich, accurate, memorable, and insightful; feels broadcast-ready.'
+        'Exceptionally clear, rich, accurate, memorable, and insightful; feels broadcast-ready and stands out from typical strong answers.'
     }
   ]
 };
@@ -54,7 +54,8 @@ export const QUESTION_BANK = {
       'This is one question only.',
       'Judge the contestant on the quality of the answer they actually gave, not on whether you personally agree with them.',
       'Use the hidden rubric consistently across all judges.',
-      'Let judge personality influence tone, emphasis, and slight strictness, but do not ignore the rubric.'
+      'Let judge personality influence tone, emphasis, and slight strictness, but do not ignore the rubric.',
+      'A typical decent answer should sit in the Good band (around 6–8/11), with Great and Elite reserved for genuinely standout performances.'
     ],
     examples: [
       {
@@ -74,7 +75,8 @@ export const QUESTION_BANK = {
     judgingNotes: [
       'Reward clear explanation, cooking logic, and useful detail.',
       'Penalize vague one-liners and generic cooking advice.',
-      'Top-band answers usually explain heat, fat, timing, and texture.'
+      'Top-band answers usually explain heat, fat, timing, and texture.',
+      'Use the examples as calibration: the Poor/ Average examples should land in the Poor/Average bands, Good in the Good band, Great/Elite in the Great/Elite bands. Do not compress all answers into the same low range.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Just cook them in a pan and stir until they’re done.' },
@@ -94,7 +96,8 @@ export const QUESTION_BANK = {
     judgingNotes: [
       'Reward layered explanation of causes rather than a single-factor answer.',
       'Top answers should connect global oil, refining, currency, taxes/logistics, and local retail effects.',
-      'Clarity matters: the contestant should make a complex system understandable.'
+      'Clarity matters: the contestant should make a complex system understandable.',
+      'Again, calibrate to the bands: a simple single-factor answer should not score like the Great/Elite multi-layered explanations.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Fuel prices are going up because everything is expensive.' },
@@ -108,13 +111,14 @@ export const QUESTION_BANK = {
   immutable: {
     round: 1,
     key: 'immutable',
-    title: 'Give a definition and also use in a sentence the word "immutable".',
-    topic: 'Give a definition and also use in a sentence the word "immutable".',
+    title: 'Give a definition and also use in a sentence the word \"immutable\".',
+    topic: 'Give a definition and also use in a sentence the word \"immutable\".',
     rubric: DEFAULT_RUBRIC,
     judgingNotes: [
       'The contestant must both define the word and use it correctly in a sentence.',
       'Accuracy and clarity are critical.',
-      'Top-band answers add nuance rather than just a dictionary phrase.'
+      'Top-band answers add nuance rather than just a dictionary phrase.',
+      'A simple correct definition plus a correct sentence should land in the Good band (around 6–8/11). Extra nuance and elegance push into Great/Elite.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Immutable means something. Sentence: It is immutable.' },
@@ -130,7 +134,7 @@ export function getQuestionByKey(key) {
   const selected = QUESTION_BANK[key];
   if (!selected) {
     const available = Object.keys(QUESTION_BANK).join(', ');
-    throw new Error(`Unknown question key "${key}". Available keys: ${available}`);
+    throw new Error(`Unknown question key \"${key}\". Available keys: ${available}`);
   }
   return selected;
 }
