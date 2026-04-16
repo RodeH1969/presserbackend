@@ -1,44 +1,51 @@
 export const DEFAULT_RUBRIC = {
   summary:
-    'Internally score the answer out of 11 using the hidden show rubric. Do not reveal the rubric or sub-scores unless explicitly asked. A typical decent answer from a normal, thoughtful person should land around 6–8/11. Reserve 10–11/11 for answers that feel genuinely excellent.',
+    'Internally score the answer out of 11. The first 8 points come from keyword/concept coverage using the question checklist. The final 3 points come from judge discretion for overall quality, clarity, flair, and persuasion. Do not reveal internal scoring unless explicitly asked.',
   criteria: [
-    { name: 'Range of relevant points', max: 3, guidance: 'How many relevant and distinct points were made? Does the answer go beyond a single obvious angle?' },
-    { name: 'Depth and accuracy', max: 3, guidance: 'How well were the ideas explained, and were they accurate and specific rather than vague?' },
-    { name: 'Clarity', max: 2, guidance: 'Was the answer easy to follow, clearly structured, and expressed in a way a general audience can understand?' },
-    { name: 'Originality / insight', max: 1, guidance: 'Did the answer add an interesting or original angle beyond generic phrases?' },
-    { name: 'Storytelling / engagement', max: 2, guidance: 'Was it compelling, memorable, or entertaining to listen to (tone, examples, imagery, or narrative)?' }
+    {
+      name: 'Auto keyword/concept coverage',
+      max: 8,
+      guidance:
+        'Award points only for relevant keyword or concept coverage defined for the question. Standard keywords are worth 1 point each. Advanced or insight keywords are worth 2 points each. Cap the total auto score at 8.'
+    },
+    {
+      name: 'Judge discretion',
+      max: 3,
+      guidance:
+        'Award 0-3 points for overall quality, clarity, flair, and persuasion. This is where judge personality shows up.'
+    }
   ],
   totalMax: 11,
   bandGuide: [
     {
       label: 'Poor',
-      scoreHint: 'around 0–2',
+      scoreHint: 'around 0-3',
       guidance:
-        'Thin, generic, vague, inaccurate, very short, or missing the point. Little to no useful content.'
+        'Very little relevant concept coverage and weak overall quality.'
     },
     {
       label: 'Average',
-      scoreHint: 'around 3–5',
+      scoreHint: 'around 4-6',
       guidance:
-        'Some relevant content, but obvious, shallow, incomplete, or loosely expressed. Might answer only part of the question.'
+        'Some useful keyword coverage and a basically competent response, but limited breadth or flair.'
     },
     {
       label: 'Good',
-      scoreHint: 'around 6–8',
+      scoreHint: 'around 7-8',
       guidance:
-        'Competent and relevant, with a clear explanation and at least some depth. Covers several key points with reasonable accuracy.'
+        'Strong concept coverage with a solid overall answer.'
     },
     {
       label: 'Great',
-      scoreHint: 'around 9–10',
+      scoreHint: 'around 9-10',
       guidance:
-        'Well-structured, accurate, insightful, and engaging, with strong explanation and at least one memorable or thoughtful angle.'
+        'Broad and accurate concept coverage plus strong clarity, persuasion, or flair.'
     },
     {
       label: 'Elite',
       scoreHint: '11',
       guidance:
-        'Exceptionally clear, rich, accurate, memorable, and insightful; feels broadcast-ready and stands out from typical strong answers.'
+        'Excellent concept coverage and standout overall delivery.'
     }
   ]
 };
@@ -52,16 +59,16 @@ export const QUESTION_BANK = {
     rubric: DEFAULT_RUBRIC,
     judgingNotes: [
       'This is one question only.',
-      'Judge the contestant on the quality of the answer they actually gave, not on whether you personally agree with them.',
-      'Use the hidden rubric consistently across all judges.',
-      'Let judge personality influence tone, emphasis, and slight strictness, but do not ignore the rubric.',
-      'A typical decent answer should sit in the Good band (around 6–8/11), with Great and Elite reserved for genuinely standout performances.'
+      'Score using 8 auto points for keyword/concept coverage and 3 judge discretion points.',
+      'Judge personality should affect ONLY the 0-3 discretion score.',
+      'Do not let judge personality override factual coverage.',
+      'Coverage should be rewarded fairly whenever the contestant genuinely includes relevant concepts.'
     ],
     examples: [
       {
         label: 'Calibration note',
         text:
-          'A weak answer is generic self-praise with no substance. A mid-tier answer gives a few reasons but lacks depth. A strong answer makes a persuasive case with specifics, structure, confidence, and memorable phrasing.'
+          'A weak answer has little substance. A mid-tier answer covers a few useful points. A strong answer covers several relevant ideas and delivers them clearly and persuasively.'
       }
     ]
   },
@@ -72,11 +79,36 @@ export const QUESTION_BANK = {
     title: "Scrambled eggs. What's the secret to great scrambled eggs?",
     topic: "Scrambled eggs. What's the secret to great scrambled eggs?",
     rubric: DEFAULT_RUBRIC,
+    autoScoring: {
+      standardKeywords: [
+        'low heat',
+        'butter',
+        'stirring',
+        'folding',
+        'timing',
+        'soft',
+        'creamy',
+        'remove early',
+        'pan'
+      ],
+      advancedKeywords: [
+        'protein',
+        'curd formation',
+        'residual heat',
+        'custard texture',
+        'temperature control'
+      ],
+      scoringRules: [
+        'Count standard keywords/concepts as 1 point each when used relevantly.',
+        'Count advanced keywords/concepts as 2 points each when used relevantly.',
+        'Synonyms or clearly equivalent phrasing should count.',
+        'Cap total auto points at 8.'
+      ]
+    },
     judgingNotes: [
-      'Reward clear explanation, cooking logic, and useful detail.',
-      'Penalize vague one-liners and generic cooking advice.',
-      'Top-band answers usually explain heat, fat, timing, and texture.',
-      'Use the examples as calibration: the Poor/ Average examples should land in the Poor/Average bands, Good in the Good band, Great/Elite in the Great/Elite bands. Do not compress all answers into the same low range.'
+      'Reward relevant cooking logic and useful detail through the auto score.',
+      'Judge discretion should focus only on quality, clarity, flair, and persuasion.',
+      'Do not withhold auto points just because the answer is not elegant; if the concept is there, count it.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Just cook them in a pan and stir until they’re done.' },
@@ -93,11 +125,41 @@ export const QUESTION_BANK = {
     title: 'Fuel costs are soaring in servos across Australia. Explain what is happening.',
     topic: 'Fuel costs are soaring in servos across Australia. Explain what is happening.',
     rubric: DEFAULT_RUBRIC,
+    autoScoring: {
+      standardKeywords: [
+        'supply',
+        'demand',
+        'oil prices',
+        'Australia',
+        'imports',
+        'bowser',
+        'servo',
+        'taxes',
+        'currency',
+        'dollar',
+        'transport',
+        'distribution'
+      ],
+      advancedKeywords: [
+        'inelastic',
+        'inelasticity',
+        'geopolitics',
+        'refining capacity',
+        'margins',
+        'global vs local markets',
+        'exchange rate impact'
+      ],
+      scoringRules: [
+        'Count standard keywords/concepts as 1 point each when used relevantly.',
+        'Count advanced keywords/concepts as 2 points each when used relevantly.',
+        'Synonyms or clearly equivalent phrasing should count.',
+        'Cap total auto points at 8.'
+      ]
+    },
     judgingNotes: [
-      'Reward layered explanation of causes rather than a single-factor answer.',
-      'Top answers should connect global oil, refining, currency, taxes/logistics, and local retail effects.',
-      'Clarity matters: the contestant should make a complex system understandable.',
-      'Again, calibrate to the bands: a simple single-factor answer should not score like the Great/Elite multi-layered explanations.'
+      'Reward layered explanation through the auto score whenever the concepts are genuinely present.',
+      'Judge discretion should capture how clear, persuasive, and well-put the answer is.',
+      'Example calibration: “Fuel prices are rising due to supply and demand, global oil prices, and a weak dollar affecting imports at the bowser.” should score 6 auto points before discretion.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Fuel prices are going up because everything is expensive.' },
@@ -111,14 +173,40 @@ export const QUESTION_BANK = {
   immutable: {
     round: 1,
     key: 'immutable',
-    title: 'Give a definition and also use in a sentence the word \"immutable\".',
-    topic: 'Give a definition and also use in a sentence the word \"immutable\".',
+    title: 'Give a definition and also use in a sentence the word "immutable".',
+    topic: 'Give a definition and also use in a sentence the word "immutable".',
     rubric: DEFAULT_RUBRIC,
+    autoScoring: {
+      standardKeywords: [
+        'cannot change',
+        'fixed',
+        'constant',
+        'unchanging',
+        'permanent',
+        'rule',
+        'law',
+        'time'
+      ],
+      advancedKeywords: [
+        'absolute',
+        'fundamentally',
+        'inherent nature',
+        'logical necessity',
+        'system design',
+        'data integrity'
+      ],
+      scoringRules: [
+        'Count standard keywords/concepts as 1 point each when used relevantly.',
+        'Count advanced keywords/concepts as 2 points each when used relevantly.',
+        'The contestant must both define the word and use it in a sentence.',
+        'Synonyms or clearly equivalent phrasing should count.',
+        'Cap total auto points at 8.'
+      ]
+    },
     judgingNotes: [
-      'The contestant must both define the word and use it correctly in a sentence.',
-      'Accuracy and clarity are critical.',
-      'Top-band answers add nuance rather than just a dictionary phrase.',
-      'A simple correct definition plus a correct sentence should land in the Good band (around 6–8/11). Extra nuance and elegance push into Great/Elite.'
+      'Accuracy matters, but reward genuine conceptual coverage fairly.',
+      'Judge discretion should distinguish dry correctness from elegant, confident delivery.',
+      'If the contestant both defines the word correctly and uses it correctly in a sentence, that should already support a respectable score before flair is considered.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Immutable means something. Sentence: It is immutable.' },
@@ -134,7 +222,7 @@ export function getQuestionByKey(key) {
   const selected = QUESTION_BANK[key];
   if (!selected) {
     const available = Object.keys(QUESTION_BANK).join(', ');
-    throw new Error(`Unknown question key \"${key}\". Available keys: ${available}`);
+    throw new Error(`Unknown question key "${key}". Available keys: ${available}`);
   }
   return selected;
 }

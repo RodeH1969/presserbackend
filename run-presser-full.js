@@ -40,7 +40,9 @@ const JUDGES = [
     portrait: path.join(ASSETS, 'Caty.jpeg'),
     voiceId: ELEVENLABS_VOICE_CATY,
     color: '0xf6d54a',
-    style: 'warm, supportive, emotionally intelligent'
+    style: 'blunt, sharp, direct, cuts through waffle fast',
+    discretionGuide:
+      'You are balanced but blunt. Award 0-3 discretion points for overall quality, clarity, flair, and persuasion. 0 = weak or messy. 1 = okay but basic. 2 = clearly good and effective. 3 = punchy, polished, memorable, persuasive.'
   },
   {
     id: 'den',
@@ -48,7 +50,9 @@ const JUDGES = [
     portrait: path.join(ASSETS, 'Den.jpeg'),
     voiceId: ELEVENLABS_VOICE_DEN,
     color: '0xff3366',
-    style: 'sharp, theatrical, cutting but entertaining'
+    style: 'cold, demanding, theatrical, cutting but entertaining',
+    discretionGuide:
+      'You are the harshest judge. Award 0-3 discretion points for overall quality, clarity, flair, and persuasion. 0 = poor or flat. 1 = decent but ordinary. 2 = genuinely strong. 3 = exceptional and rare. Most merely decent answers should get 1 from you.'
   },
   {
     id: 'tess',
@@ -56,7 +60,9 @@ const JUDGES = [
     portrait: path.join(ASSETS, 'Tess.jpeg'),
     voiceId: ELEVENLABS_VOICE_TESS,
     color: '0x66aaff',
-    style: 'measured, technical, precise'
+    style: 'warm, calm, encouraging, attentive to voice and human connection',
+    discretionGuide:
+      'You are the warmest judge. Award 0-3 discretion points for overall quality, clarity, flair, and persuasion. 0 = weak or hard to follow. 1 = decent but plain. 2 = good, clear, engaging. 3 = compelling, memorable, confident, persuasive. If someone does a solid job with personality, lean 2 rather than 1.'
   }
 ];
 
@@ -119,20 +125,12 @@ function alphaExpr(start, fadeIn, end, fadeOut) {
   return `if(lt(t\\,${s})\\,0\\,if(lt(t\\,${fi})\\,(t-${s})/${fadeIn.toFixed(2)}\\,if(lt(t\\,${fo})\\,1\\,if(lt(t\\,${e})\\,(${e}-t)/${fadeOut.toFixed(2)}\\,0))))`;
 }
 
-function buildRubricText(question) {
-  const criteriaText = question.rubric.criteria
-    .map(c => `- ${c.name} (${c.max}): ${c.guidance}`)
-    .join('\n');
-
-  const bandsText = question.rubric.bandGuide
-    .map(b => `- ${b.label} (${b.scoreHint}): ${b.guidance}`)
-    .join('\n');
-
-  const notesText = (question.judgingNotes || [])
-    .map(n => `- ${n}`)
-    .join('\n');
-
-  const examplesText = (question.examples || [])
+function buildAutoRubricText(question) {
+  const auto = question.autoScoring || {};
+  const standard = (auto.standardKeywords || []).map(k => `- ${k} (1 point)`).join('\n');
+  const advanced = (auto.advancedKeywords || []).map(k => `- ${k} (2 points)`).join('\n');
+  const rules = (auto.scoringRules || []).map(r => `- ${r}`).join('\n');
+  const examples = (question.examples || [])
     .map(ex => {
       const scorePart = typeof ex.score === 'number' ? ` (${ex.score}/11)` : '';
       return `- ${ex.label}${scorePart}: ${ex.text}`;
@@ -142,22 +140,25 @@ function buildRubricText(question) {
   return [
     `QUESTION: ${question.title}`,
     '',
-    'HIDDEN SCORING RUBRIC (/11):',
-    criteriaText,
+    'AUTO POINTS SYSTEM (MAX 8):',
+    'Award points for relevant keyword/concept coverage only.',
     '',
-    'CALIBRATION BANDS:',
-    bandsText,
+    'STANDARD KEYWORDS / CONCEPTS (1 point each):',
+    standard || '- None',
     '',
-    'JUDGING NOTES:',
-    notesText || '- None',
+    'ADVANCED / INSIGHT KEYWORDS / CONCEPTS (2 points each):',
+    advanced || '- None',
+    '',
+    'SCORING RULES:',
+    rules || '- None',
     '',
     'EXAMPLE CALIBRATIONS:',
-    examplesText || '- None'
+    examples || '- None'
   ].join('\n');
 }
 
-async function scoreJudge(judge, transcript, question) {
-  const rubricText = buildRubricText(question);
+async function scoreAutoPoints(transcript, question) {
+  const rubricText = buildAutoRubricText(question);
 
   const response = await client.responses.create({
     model: 'gpt-4.1',
@@ -165,13 +166,77 @@ async function scoreJudge(judge, transcript, question) {
       {
         role: 'system',
         content: [
+          'You are an exact scoring engine.',
+          'Your task is to award AUTO POINTS ONLY.',
+          'Do not judge flair, clarity, charisma, or persuasion.',
+          'Only award points for relevant keyword or concept coverage from the provided checklist.',
+          'Standard keywords/concepts are worth 1 point each.',
+          'Advanced/insight keywords/concepts are worth 2 points each.',
+          'Count synonyms and clearly equivalent phrasing.',
+          'Do not double-count the same idea repeatedly.',
+          'Cap the total auto score at 8.',
+          'Be fair and give credit when the contestant clearly expresses the concept even if the wording is not exact.',
+          'Return strict JSON only.'
+        ].join(' ')
+      },
+      {
+        role: 'user',
+        content: [
+          rubricText,
+          '',
+          'CONTESTANT TRANSCRIPT:',
+          transcript,
+          '',
+          'TASK:',
+          'Compute the auto score out of 8.',
+          'List which matched standard concepts were counted.',
+          'List which matched advanced concepts were counted.',
+          'Give a brief explanation.'
+        ].join('\n')
+      }
+    ],
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'auto_score',
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            auto_score: { type: 'integer', minimum: 0, maximum: 8 },
+            matched_standard: {
+              type: 'array',
+              items: { type: 'string' }
+            },
+            matched_advanced: {
+              type: 'array',
+              items: { type: 'string' }
+            },
+            explanation: { type: 'string' }
+          },
+          required: ['auto_score', 'matched_standard', 'matched_advanced', 'explanation']
+        }
+      }
+    }
+  });
+
+  return JSON.parse(response.output_text);
+}
+
+async function scoreJudgeDiscretion(judge, transcript, question, autoResult) {
+  const response = await client.responses.create({
+    model: 'gpt-4.1',
+    input: [
+      {
+        role: 'system',
+        content: [
           'You are a TV speech competition judge.',
-          'You must internally use the provided hidden scoring rubric and example calibrations to decide the score.',
-          'Do not reveal rubric sub-scores or mechanically describe the rubric.',
-          'The rubric is shared by all judges so the score scale stays consistent.',
-          `However, you are specifically ${judge.displayName}: ${judge.style}.`,
-          'Let that personality affect tone, emphasis, and slight strictness, but keep the score grounded in the shared rubric.',
-          'Return strict JSON with keys: score, reason, headline.'
+          `You are specifically ${judge.displayName}: ${judge.style}.`,
+          'The AUTO score has already been decided separately.',
+          'You must NOT rescore keyword coverage.',
+          'Your ONLY task is to award 0-3 discretion points for overall quality, clarity, flair, and persuasion.',
+          judge.discretionGuide,
+          'Return strict JSON with keys: discretion_score, reason, headline.'
         ].join(' ')
       },
       {
@@ -180,32 +245,41 @@ async function scoreJudge(judge, transcript, question) {
           `Judge: ${judge.displayName}`,
           `Style: ${judge.style}`,
           '',
-          rubricText,
+          `Question: ${question.title}`,
+          '',
+          'AUTO SCORE ALREADY AWARDED:',
+          `${autoResult.auto_score}/8`,
+          '',
+          'MATCHED STANDARD CONCEPTS:',
+          autoResult.matched_standard.length ? autoResult.matched_standard.join(', ') : 'None',
+          '',
+          'MATCHED ADVANCED CONCEPTS:',
+          autoResult.matched_advanced.length ? autoResult.matched_advanced.join(', ') : 'None',
           '',
           'CONTESTANT TRANSCRIPT:',
           transcript,
           '',
           'TASK:',
-          'Score this answer out of 11 using the hidden rubric as your main guide.',
+          'Award discretion points only (0-3).',
+          'Do not change or reconsider the auto score.',
           'The reason should be concise and natural, written in this judge’s voice.',
-          'The headline should be short, punchy, and in this judge’s voice.',
-          'Do not output criterion-by-criterion marks.'
+          'The headline should be short, punchy, and in this judge’s voice.'
         ].join('\n')
       }
     ],
     text: {
       format: {
         type: 'json_schema',
-        name: 'judge_score',
+        name: 'judge_discretion',
         schema: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            score: { type: 'integer', minimum: 0, maximum: 11 },
+            discretion_score: { type: 'integer', minimum: 0, maximum: 3 },
             reason: { type: 'string' },
             headline: { type: 'string' }
           },
-          required: ['score', 'reason', 'headline']
+          required: ['discretion_score', 'reason', 'headline']
         }
       }
     }
@@ -218,14 +292,16 @@ function buildJudgePrompt(judge, transcript, judgeScore, question) {
   const questionLine = `Question: ${question.title}`;
 
   if (judge.displayName === 'Caty') {
-    return `You are Caty, a warm but honest TV judge.
+    return `You are Caty, a blunt but entertaining TV judge.
 
 ${questionLine}
 
 Contestant transcript:
 """${transcript}"""
 
-Your awarded score is ${judgeScore.score}/11.
+Auto score was ${judgeScore.autoScore}/8.
+Your discretion score was ${judgeScore.discretionScore}/3.
+Final score is ${judgeScore.score}/11.
 Your scoring reason was: ${judgeScore.reason}
 
 Write a short spoken critique of about 30 to 42 words.
@@ -233,18 +309,20 @@ Requirements:
 - Start with one specific strength.
 - Give one practical improvement.
 - End with the exact sentence: "I gave you ${judgeScore.score}."
-- Sound supportive, polished and showbiz-ready.`;
+- Sound direct, polished and TV-ready.`;
   }
 
   if (judge.displayName === 'Den') {
-    return `You are Den, a theatrical, sarcastic TV judge.
+    return `You are Den, a harsh theatrical TV judge.
 
 ${questionLine}
 
 Contestant transcript:
 """${transcript}"""
 
-Your awarded score is ${judgeScore.score}/11.
+Auto score was ${judgeScore.autoScore}/8.
+Your discretion score was ${judgeScore.discretionScore}/3.
+Final score is ${judgeScore.score}/11.
 Your scoring reason was: ${judgeScore.reason}
 
 Write a short spoken critique of about 30 to 42 words.
@@ -256,22 +334,24 @@ Requirements:
 - Make it sound like a memorable TV verdict.`;
   }
 
-  return `You are Tess, a calm, analytical TV judge.
+  return `You are Tess, a warm, composed TV judge.
 
 ${questionLine}
 
 Contestant transcript:
 """${transcript}"""
 
-Your awarded score is ${judgeScore.score}/11.
+Auto score was ${judgeScore.autoScore}/8.
+Your discretion score was ${judgeScore.discretionScore}/3.
+Final score is ${judgeScore.score}/11.
 Your scoring reason was: ${judgeScore.reason}
 
 Write a short spoken critique of about 30 to 42 words.
 Requirements:
-- Focus on structure, clarity or delivery.
-- Give one technically useful improvement.
+- Focus on clarity, quality, or delivery.
+- Give one useful improvement.
 - End with the exact sentence: "I gave you ${judgeScore.score}."
-- Sound composed, precise and authoritative.`;
+- Sound calm, encouraging and insightful.`;
 }
 
 async function generateJudgeScript(judge, transcript, judgeScore, question) {
@@ -442,33 +522,57 @@ async function main() {
   const transcript = await transcribeVideoToText(INPUT_VIDEO);
   fs.writeFileSync(path.join(OUTPUT, 'contestant-transcript.txt'), transcript, 'utf8');
 
+  console.log('2) Calculating shared auto score out of 8...');
+  const autoResult = await scoreAutoPoints(transcript, ACTIVE_QUESTION);
+  fs.writeFileSync(
+    path.join(OUTPUT, 'auto-score.json'),
+    JSON.stringify(autoResult, null, 2),
+    'utf8'
+  );
+
   const createdVideos = [];
   const judgeResults = [];
 
   for (const judge of JUDGES) {
-    console.log(`2) Scoring ${judge.displayName} out of 11...`);
-    const judgeScore = await scoreJudge(judge, transcript, ACTIVE_QUESTION);
+    console.log(`3) Scoring discretion for ${judge.displayName}...`);
+    const discretion = await scoreJudgeDiscretion(judge, transcript, ACTIVE_QUESTION, autoResult);
+
+    const finalScore = autoResult.auto_score + discretion.discretion_score;
+
+    const judgeScore = {
+      score: finalScore,
+      autoScore: autoResult.auto_score,
+      discretionScore: discretion.discretion_score,
+      headline: discretion.headline,
+      reason: discretion.reason
+    };
+
     judgeResults.push({
       judge: judge.displayName,
-      score: judgeScore.score,
-      headline: judgeScore.headline,
-      reason: judgeScore.reason
+      score: finalScore,
+      auto_score: autoResult.auto_score,
+      discretion_score: discretion.discretion_score,
+      headline: discretion.headline,
+      reason: discretion.reason,
+      matched_standard: autoResult.matched_standard,
+      matched_advanced: autoResult.matched_advanced
     });
+
     fs.writeFileSync(
       path.join(OUTPUT, `${judge.id}-score.json`),
       JSON.stringify(judgeScore, null, 2),
       'utf8'
     );
 
-    console.log(`3) Generating critique for ${judge.displayName}...`);
+    console.log(`4) Generating critique for ${judge.displayName}...`);
     const script = await generateJudgeScript(judge, transcript, judgeScore, ACTIVE_QUESTION);
     fs.writeFileSync(path.join(OUTPUT, `${judge.id}-script.txt`), script, 'utf8');
 
-    console.log(`4) Synthesizing audio for ${judge.displayName}...`);
+    console.log(`5) Synthesizing audio for ${judge.displayName}...`);
     const audioOut = path.join(OUTPUT, `${judge.id}.mp3`);
     await synthesizeWithElevenLabs(script, judge.voiceId, audioOut);
 
-    console.log(`5) Rendering dramatic judge segment for ${judge.displayName}...`);
+    console.log(`6) Rendering dramatic judge segment for ${judge.displayName}...`);
     const videoOut = makeJudgeVideoWithPortrait(judge, audioOut, judgeScore);
     createdVideos.push(videoOut);
     console.log(`${judge.displayName} duration: ${secondsOfMedia(videoOut).toFixed(2)}s`);
@@ -478,7 +582,7 @@ async function main() {
   const finalCard = makeFinalScoreCard(totalScore, 33);
   createdVideos.push(finalCard);
 
-  console.log('6) Concatenating final program...');
+  console.log('7) Concatenating final program...');
   const finalOut = path.join(OUTPUT, 'round1-judges.mp4');
   concatVideos(createdVideos, finalOut);
 
@@ -487,10 +591,18 @@ async function main() {
     question_key: ACTIVE_QUESTION.key,
     topic: CONTESTANT.topic,
     transcript_file: path.join(OUTPUT, 'contestant-transcript.txt'),
+    auto_score: autoResult.auto_score,
+    matched_standard: autoResult.matched_standard,
+    matched_advanced: autoResult.matched_advanced,
+    auto_explanation: autoResult.explanation,
     judges: judgeResults,
+    judge_1_score: judgeResults[0]?.score ?? null,
+    judge_2_score: judgeResults[1]?.score ?? null,
+    judge_3_score: judgeResults[2]?.score ?? null,
     total_score: totalScore,
     total_max: 33,
-    final_video: finalOut
+    final_video: finalOut,
+    result_summary: `Auto score ${autoResult.auto_score}/8. Final scores — Caty: ${judgeResults[0]?.score ?? 0}, Den: ${judgeResults[1]?.score ?? 0}, Tess: ${judgeResults[2]?.score ?? 0}.`
   };
 
   fs.writeFileSync(path.join(OUTPUT, 'run-summary.json'), JSON.stringify(summary, null, 2), 'utf8');
