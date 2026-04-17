@@ -40,9 +40,11 @@ const JUDGES = [
     portrait: path.join(ASSETS, 'Caty.jpeg'),
     voiceId: ELEVENLABS_VOICE_CATY,
     color: '0xf6d54a',
-    style: 'blunt, sharp, direct, cuts through waffle fast',
+    style: 'blunt, sharp, balanced, cuts through waffle fast',
+    hiddenVoteMax: 3,
+    allowedVotes: [0, 1, 2, 3],
     discretionGuide:
-      'You are balanced but blunt. Award 0-3 discretion points for overall quality, clarity, flair, and persuasion. 0 = weak or messy. 1 = okay but basic. 2 = clearly good and effective. 3 = punchy, polished, memorable, persuasive.'
+      'You are balanced but blunt. Hidden discretion options are only 0, 1, 2, or 3. Give 0 for weak or messy answers. Give 1 for basic or limited answers. Give 2 for clearly good answers. Give 3 for punchy, polished, memorable, persuasive answers.'
   },
   {
     id: 'den',
@@ -50,9 +52,11 @@ const JUDGES = [
     portrait: path.join(ASSETS, 'Den.jpeg'),
     voiceId: ELEVENLABS_VOICE_DEN,
     color: '0xff3366',
-    style: 'cold, demanding, theatrical, cutting but entertaining',
+    style: 'cold, nasty, demanding, theatrical, hard to impress',
+    hiddenVoteMax: 1.5,
+    allowedVotes: [0, 0.5, 1.0, 1.5],
     discretionGuide:
-      'You are the harshest judge. Award 0-3 discretion points for overall quality, clarity, flair, and persuasion. 0 = poor or flat. 1 = decent but ordinary. 2 = genuinely strong. 3 = exceptional and rare. Most merely decent answers should get 1 from you.'
+      'You are the harshest judge. Hidden discretion options are only 0, 0.5, 1.0, or 1.5. Give 0 if there is basically nothing to admire. Give 0.5 for a little competence. Give 1.0 for a decent answer with some quality. Give 1.5 only if it is genuinely strong. You should usually score lower than the others.'
   },
   {
     id: 'tess',
@@ -60,12 +64,16 @@ const JUDGES = [
     portrait: path.join(ASSETS, 'Tess.jpeg'),
     voiceId: ELEVENLABS_VOICE_TESS,
     color: '0x66aaff',
-    style: 'warm, calm, encouraging, attentive to voice and human connection',
+    style: 'warm, generous, encouraging, always looking for something good',
+    hiddenVoteMax: 4,
+    allowedVotes: [0, 1, 2, 3, 4],
     discretionGuide:
-      'You are the warmest judge. Award 0-3 discretion points for overall quality, clarity, flair, and persuasion. 0 = weak or hard to follow. 1 = decent but plain. 2 = good, clear, engaging. 3 = compelling, memorable, confident, persuasive. If someone does a solid job with personality, lean 2 rather than 1.'
+      'You are the nicest judge. Hidden discretion options are only 0, 1, 2, 3, or 4. You actively look for something good in the answer if anything is there. If there is genuinely nothing good, score low. But if there is clarity, effort, personality, confidence, warmth, or any memorable line, reward it. Give 4 for genuinely compelling delivery.'
   }
 ];
 
+const SHARED_WORD_MAX = 7;
+const DISPLAYED_JUDGE_MAX = 11;
 const BACKGROUND_IMAGE = path.join(ASSETS, 'thepresserchair.jpeg');
 
 function checkFile(filePath, label) {
@@ -125,23 +133,17 @@ function alphaExpr(start, fadeIn, end, fadeOut) {
   return `if(lt(t\\,${s})\\,0\\,if(lt(t\\,${fi})\\,(t-${s})/${fadeIn.toFixed(2)}\\,if(lt(t\\,${fo})\\,1\\,if(lt(t\\,${e})\\,(${e}-t)/${fadeOut.toFixed(2)}\\,0))))`;
 }
 
-function buildAutoRubricText(question) {
+function buildWordRubricText(question) {
   const auto = question.autoScoring || {};
   const standard = (auto.standardKeywords || []).map(k => `- ${k} (1 point)`).join('\n');
   const advanced = (auto.advancedKeywords || []).map(k => `- ${k} (2 points)`).join('\n');
   const rules = (auto.scoringRules || []).map(r => `- ${r}`).join('\n');
-  const examples = (question.examples || [])
-    .map(ex => {
-      const scorePart = typeof ex.score === 'number' ? ` (${ex.score}/11)` : '';
-      return `- ${ex.label}${scorePart}: ${ex.text}`;
-    })
-    .join('\n');
 
   return [
     `QUESTION: ${question.title}`,
     '',
-    'AUTO POINTS SYSTEM (MAX 8):',
-    'Award points for relevant keyword/concept coverage only.',
+    `SHARED WORD SCORE SYSTEM (MAX ${SHARED_WORD_MAX}):`,
+    'Award points only for relevant word/concept coverage.',
     '',
     'STANDARD KEYWORDS / CONCEPTS (1 point each):',
     standard || '- None',
@@ -150,15 +152,12 @@ function buildAutoRubricText(question) {
     advanced || '- None',
     '',
     'SCORING RULES:',
-    rules || '- None',
-    '',
-    'EXAMPLE CALIBRATIONS:',
-    examples || '- None'
+    rules || '- None'
   ].join('\n');
 }
 
-async function scoreAutoPoints(transcript, question) {
-  const rubricText = buildAutoRubricText(question);
+async function scoreWordPoints(transcript, question) {
+  const rubricText = buildWordRubricText(question);
 
   const response = await client.responses.create({
     model: 'gpt-4.1',
@@ -167,15 +166,15 @@ async function scoreAutoPoints(transcript, question) {
         role: 'system',
         content: [
           'You are an exact scoring engine.',
-          'Your task is to award AUTO POINTS ONLY.',
-          'Do not judge flair, clarity, charisma, persuasion, or delivery.',
-          'Only award points for relevant keyword or concept coverage from the provided checklist.',
+          'Your task is to award SHARED WORD / CONCEPT POINTS ONLY.',
+          'Do not judge flair, quality, charisma, persuasion, or delivery.',
+          'Only award points for relevant keyword or concept coverage from the checklist.',
           'Standard keywords/concepts are worth 1 point each.',
           'Advanced/insight keywords/concepts are worth 2 points each.',
           'Count synonyms and clearly equivalent phrasing.',
           'Give credit when the contestant clearly expresses the idea even if wording is not exact.',
           'Do not double-count the same concept repeatedly.',
-          'Cap the total auto score at 8.',
+          `Cap the final shared word score at ${SHARED_WORD_MAX}.`,
           'Return strict JSON only.'
         ].join(' ')
       },
@@ -188,7 +187,7 @@ async function scoreAutoPoints(transcript, question) {
           transcript,
           '',
           'TASK:',
-          'Compute the auto score out of 8.',
+          `Compute the shared word score out of ${SHARED_WORD_MAX}.`,
           'List which matched standard concepts were counted.',
           'List which matched advanced concepts were counted.',
           'Give a brief explanation.'
@@ -198,12 +197,12 @@ async function scoreAutoPoints(transcript, question) {
     text: {
       format: {
         type: 'json_schema',
-        name: 'auto_score',
+        name: 'word_score',
         schema: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            auto_score: { type: 'integer', minimum: 0, maximum: 8 },
+            word_score: { type: 'integer', minimum: 0, maximum: SHARED_WORD_MAX },
             matched_standard: {
               type: 'array',
               items: { type: 'string' }
@@ -214,7 +213,7 @@ async function scoreAutoPoints(transcript, question) {
             },
             explanation: { type: 'string' }
           },
-          required: ['auto_score', 'matched_standard', 'matched_advanced', 'explanation']
+          required: ['word_score', 'matched_standard', 'matched_advanced', 'explanation']
         }
       }
     }
@@ -223,7 +222,9 @@ async function scoreAutoPoints(transcript, question) {
   return JSON.parse(response.output_text);
 }
 
-async function scoreJudgeDiscretion(judge, transcript, question, autoResult) {
+async function scoreJudgeHiddenVote(judge, transcript, question, wordResult) {
+  const allowedVotesText = judge.allowedVotes.join(', ');
+
   const response = await client.responses.create({
     model: 'gpt-4.1',
     input: [
@@ -232,11 +233,13 @@ async function scoreJudgeDiscretion(judge, transcript, question, autoResult) {
         content: [
           'You are a TV speech competition judge.',
           `You are specifically ${judge.displayName}: ${judge.style}.`,
-          'The AUTO score has already been decided separately.',
-          'You must NOT rescore keyword coverage.',
-          'Your ONLY task is to award 0-3 discretion points for overall quality, clarity, flair, and persuasion.',
+          'The shared word score has already been decided separately.',
+          'You must NOT rescore keywords or concept coverage.',
+          'Your only task is to choose a hidden discretion vote from the allowed options.',
           judge.discretionGuide,
-          'Return strict JSON with keys: discretion_score, reason, headline.'
+          `Allowed hidden votes for you are: ${allowedVotesText}.`,
+          'You must return exactly one of those allowed values.',
+          'Return strict JSON with keys: hidden_vote, reason, headline.'
         ].join(' ')
       },
       {
@@ -247,45 +250,60 @@ async function scoreJudgeDiscretion(judge, transcript, question, autoResult) {
           '',
           `Question: ${question.title}`,
           '',
-          'AUTO SCORE ALREADY AWARDED:',
-          `${autoResult.auto_score}/8`,
+          'SHARED WORD SCORE ALREADY AWARDED:',
+          `${wordResult.word_score}/${SHARED_WORD_MAX}`,
           '',
           'MATCHED STANDARD CONCEPTS:',
-          autoResult.matched_standard.length ? autoResult.matched_standard.join(', ') : 'None',
+          wordResult.matched_standard.length ? wordResult.matched_standard.join(', ') : 'None',
           '',
           'MATCHED ADVANCED CONCEPTS:',
-          autoResult.matched_advanced.length ? autoResult.matched_advanced.join(', ') : 'None',
+          wordResult.matched_advanced.length ? wordResult.matched_advanced.join(', ') : 'None',
           '',
           'CONTESTANT TRANSCRIPT:',
           transcript,
           '',
           'TASK:',
-          'Award discretion points only (0-3).',
-          'Do not change or reconsider the auto score.',
-          'The reason should be concise and natural, written in this judge’s voice.',
-          'The headline should be short, punchy, and in this judge’s voice.'
+          `Choose one hidden discretion vote from these allowed values only: ${allowedVotesText}.`,
+          'Do not change or reconsider the shared word score.',
+          'The reason should be concise and in the judge voice.',
+          'The headline should be short and punchy.'
         ].join('\n')
       }
     ],
     text: {
       format: {
         type: 'json_schema',
-        name: 'judge_discretion',
+        name: 'judge_hidden_vote',
         schema: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            discretion_score: { type: 'integer', minimum: 0, maximum: 3 },
+            hidden_vote: {
+              anyOf: judge.allowedVotes.map(v => ({ type: 'number', const: v }))
+            },
             reason: { type: 'string' },
             headline: { type: 'string' }
           },
-          required: ['discretion_score', 'reason', 'headline']
+          required: ['hidden_vote', 'reason', 'headline']
         }
       }
     }
   });
 
   return JSON.parse(response.output_text);
+}
+
+function normalizeJudgeScore(wordScore, hiddenVote, hiddenVoteMax) {
+  const rawTotal = wordScore + hiddenVote;
+  const rawMax = SHARED_WORD_MAX + hiddenVoteMax;
+  const normalized = Math.round((rawTotal / rawMax) * DISPLAYED_JUDGE_MAX);
+  const displayedScore = Math.max(0, Math.min(DISPLAYED_JUDGE_MAX, normalized));
+
+  return {
+    rawTotal,
+    rawMax,
+    displayedScore
+  };
 }
 
 function buildJudgePrompt(judge, transcript, judgeScore, question) {
@@ -299,16 +317,16 @@ ${questionLine}
 Contestant transcript:
 """${transcript}"""
 
-Auto score was ${judgeScore.autoScore}/8.
-Your discretion score was ${judgeScore.discretionScore}/3.
-Final score is ${judgeScore.score}/11.
+Shared word score was ${judgeScore.wordScore}/${SHARED_WORD_MAX}.
+Your hidden vote was ${judgeScore.hiddenVote}/${judgeScore.hiddenVoteMax}.
+Your displayed final score is ${judgeScore.displayedScore}/11.
 Your scoring reason was: ${judgeScore.reason}
 
 Write a short spoken critique of about 30 to 42 words.
 Requirements:
 - Start with one specific strength.
 - Give one practical improvement.
-- End with the exact sentence: "I gave you ${judgeScore.score}."
+- End with the exact sentence: "I gave you ${judgeScore.displayedScore}."
 - Sound direct, polished and TV-ready.`;
   }
 
@@ -320,17 +338,17 @@ ${questionLine}
 Contestant transcript:
 """${transcript}"""
 
-Auto score was ${judgeScore.autoScore}/8.
-Your discretion score was ${judgeScore.discretionScore}/3.
-Final score is ${judgeScore.score}/11.
+Shared word score was ${judgeScore.wordScore}/${SHARED_WORD_MAX}.
+Your hidden vote was ${judgeScore.hiddenVote}/${judgeScore.hiddenVoteMax}.
+Your displayed final score is ${judgeScore.displayedScore}/11.
 Your scoring reason was: ${judgeScore.reason}
 
 Write a short spoken critique of about 30 to 42 words.
 Requirements:
 - Be biting, funny and sharp, but not cruel.
 - Mention one thing that failed.
-- Mention one thing that surprisingly worked.
-- End with the exact sentence: "I gave you ${judgeScore.score}."
+- Mention one thing that worked better than expected.
+- End with the exact sentence: "I gave you ${judgeScore.displayedScore}."
 - Make it sound like a memorable TV verdict.`;
   }
 
@@ -341,17 +359,17 @@ ${questionLine}
 Contestant transcript:
 """${transcript}"""
 
-Auto score was ${judgeScore.autoScore}/8.
-Your discretion score was ${judgeScore.discretionScore}/3.
-Final score is ${judgeScore.score}/11.
+Shared word score was ${judgeScore.wordScore}/${SHARED_WORD_MAX}.
+Your hidden vote was ${judgeScore.hiddenVote}/${judgeScore.hiddenVoteMax}.
+Your displayed final score is ${judgeScore.displayedScore}/11.
 Your scoring reason was: ${judgeScore.reason}
 
 Write a short spoken critique of about 30 to 42 words.
 Requirements:
-- Focus on clarity, quality, or delivery.
+- Focus on something positive if there is anything good to praise.
 - Give one useful improvement.
-- End with the exact sentence: "I gave you ${judgeScore.score}."
-- Sound calm, encouraging and insightful.`;
+- End with the exact sentence: "I gave you ${judgeScore.displayedScore}."
+- Sound warm, encouraging and insightful.`;
 }
 
 async function generateJudgeScript(judge, transcript, judgeScore, question) {
@@ -412,9 +430,9 @@ function makeJudgeVideoWithPortrait(judge, audioPath, judgeScore) {
 
   const nameText = `${judge.displayName}`;
   const headlineText = judgeScore.headline || `${judge.displayName} has spoken`;
-  const scoreBig = `${judgeScore.score}`;
+  const scoreBig = `${judgeScore.displayedScore}`;
   const scoreSmall = `/11`;
-  const verdictText = `${judge.displayName.toUpperCase()} GAVE YOU ${judgeScore.score}/11`;
+  const verdictText = `${judge.displayName.toUpperCase()} GAVE YOU ${judgeScore.displayedScore}/11`;
 
   const alpha = alphaExpr(revealStart, 0.35, revealEnd, 0.20);
 
@@ -522,12 +540,12 @@ async function main() {
   const transcript = await transcribeVideoToText(INPUT_VIDEO);
   fs.writeFileSync(path.join(OUTPUT, 'contestant-transcript.txt'), transcript, 'utf8');
 
-  console.log('2) Calculating shared auto score out of 8...');
-  const autoResult = await scoreAutoPoints(transcript, ACTIVE_QUESTION);
-  console.log('AUTO SCORE RESULT:', JSON.stringify(autoResult, null, 2));
+  console.log(`2) Calculating shared word score out of ${SHARED_WORD_MAX}...`);
+  const wordResult = await scoreWordPoints(transcript, ACTIVE_QUESTION);
+  console.log('WORD SCORE RESULT:', JSON.stringify(wordResult, null, 2));
   fs.writeFileSync(
-    path.join(OUTPUT, 'auto-score.json'),
-    JSON.stringify(autoResult, null, 2),
+    path.join(OUTPUT, 'word-score.json'),
+    JSON.stringify(wordResult, null, 2),
     'utf8'
   );
 
@@ -535,29 +553,49 @@ async function main() {
   const judgeResults = [];
 
   for (const judge of JUDGES) {
-    console.log(`3) Scoring discretion for ${judge.displayName}...`);
-    const discretion = await scoreJudgeDiscretion(judge, transcript, ACTIVE_QUESTION, autoResult);
-    console.log(`${judge.displayName} DISCRETION RESULT:`, JSON.stringify(discretion, null, 2));
+    console.log(`3) Scoring hidden vote for ${judge.displayName}...`);
+    const hiddenVoteResult = await scoreJudgeHiddenVote(judge, transcript, ACTIVE_QUESTION, wordResult);
+    console.log(`${judge.displayName} HIDDEN VOTE RESULT:`, JSON.stringify(hiddenVoteResult, null, 2));
 
-    const finalScore = autoResult.auto_score + discretion.discretion_score;
+    const normalized = normalizeJudgeScore(
+      wordResult.word_score,
+      Number(hiddenVoteResult.hidden_vote),
+      judge.hiddenVoteMax
+    );
+
+    console.log(`${judge.displayName} NORMALIZED SCORE:`, JSON.stringify({
+      word_score: wordResult.word_score,
+      hidden_vote: Number(hiddenVoteResult.hidden_vote),
+      hidden_vote_max: judge.hiddenVoteMax,
+      raw_total: normalized.rawTotal,
+      raw_max: normalized.rawMax,
+      displayed_score: normalized.displayedScore
+    }, null, 2));
 
     const judgeScore = {
-      score: finalScore,
-      autoScore: autoResult.auto_score,
-      discretionScore: discretion.discretion_score,
-      headline: discretion.headline,
-      reason: discretion.reason
+      score: normalized.displayedScore,
+      displayedScore: normalized.displayedScore,
+      wordScore: wordResult.word_score,
+      hiddenVote: Number(hiddenVoteResult.hidden_vote),
+      hiddenVoteMax: judge.hiddenVoteMax,
+      rawTotal: normalized.rawTotal,
+      rawMax: normalized.rawMax,
+      headline: hiddenVoteResult.headline,
+      reason: hiddenVoteResult.reason
     };
 
     judgeResults.push({
       judge: judge.displayName,
-      score: finalScore,
-      auto_score: autoResult.auto_score,
-      discretion_score: discretion.discretion_score,
-      headline: discretion.headline,
-      reason: discretion.reason,
-      matched_standard: autoResult.matched_standard,
-      matched_advanced: autoResult.matched_advanced
+      score: normalized.displayedScore,
+      word_score: wordResult.word_score,
+      hidden_vote: Number(hiddenVoteResult.hidden_vote),
+      hidden_vote_max: judge.hiddenVoteMax,
+      raw_total: normalized.rawTotal,
+      raw_max: normalized.rawMax,
+      headline: hiddenVoteResult.headline,
+      reason: hiddenVoteResult.reason,
+      matched_standard: wordResult.matched_standard,
+      matched_advanced: wordResult.matched_advanced
     });
 
     fs.writeFileSync(
@@ -593,10 +631,11 @@ async function main() {
     question_key: ACTIVE_QUESTION.key,
     topic: CONTESTANT.topic,
     transcript_file: path.join(OUTPUT, 'contestant-transcript.txt'),
-    auto_score: autoResult.auto_score,
-    matched_standard: autoResult.matched_standard,
-    matched_advanced: autoResult.matched_advanced,
-    auto_explanation: autoResult.explanation,
+    word_score: wordResult.word_score,
+    word_score_max: SHARED_WORD_MAX,
+    matched_standard: wordResult.matched_standard,
+    matched_advanced: wordResult.matched_advanced,
+    word_explanation: wordResult.explanation,
     judges: judgeResults,
     judge_1_score: judgeResults[0]?.score ?? null,
     judge_2_score: judgeResults[1]?.score ?? null,
@@ -604,7 +643,7 @@ async function main() {
     total_score: totalScore,
     total_max: 33,
     final_video: finalOut,
-    result_summary: `Question ${ACTIVE_QUESTION.key}. Auto score ${autoResult.auto_score}/8. Final scores — Caty: ${judgeResults[0]?.score ?? 0}, Den: ${judgeResults[1]?.score ?? 0}, Tess: ${judgeResults[2]?.score ?? 0}.`
+    result_summary: `Question ${ACTIVE_QUESTION.key}. Shared word score ${wordResult.word_score}/${SHARED_WORD_MAX}. Final displayed scores — Caty: ${judgeResults[0]?.score ?? 0}, Den: ${judgeResults[1]?.score ?? 0}, Tess: ${judgeResults[2]?.score ?? 0}.`
   };
 
   fs.writeFileSync(path.join(OUTPUT, 'run-summary.json'), JSON.stringify(summary, null, 2), 'utf8');
