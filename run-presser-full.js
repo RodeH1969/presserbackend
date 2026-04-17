@@ -25,7 +25,7 @@ const OUTPUT = path.join(ROOT, 'output');
 fs.mkdirSync(OUTPUT, { recursive: true });
 
 const INPUT_VIDEO = process.argv[2] || path.join(ROOT, 'input.mp4');
-const QUESTION_KEY = process.argv[3] || 'round1';
+const QUESTION_KEY = process.argv[3] || 'fuel_prices';
 const ACTIVE_QUESTION = getQuestionByKey(QUESTION_KEY);
 
 const CONTESTANT = {
@@ -168,14 +168,14 @@ async function scoreAutoPoints(transcript, question) {
         content: [
           'You are an exact scoring engine.',
           'Your task is to award AUTO POINTS ONLY.',
-          'Do not judge flair, clarity, charisma, or persuasion.',
+          'Do not judge flair, clarity, charisma, persuasion, or delivery.',
           'Only award points for relevant keyword or concept coverage from the provided checklist.',
           'Standard keywords/concepts are worth 1 point each.',
           'Advanced/insight keywords/concepts are worth 2 points each.',
           'Count synonyms and clearly equivalent phrasing.',
-          'Do not double-count the same idea repeatedly.',
+          'Give credit when the contestant clearly expresses the idea even if wording is not exact.',
+          'Do not double-count the same concept repeatedly.',
           'Cap the total auto score at 8.',
-          'Be fair and give credit when the contestant clearly expresses the concept even if the wording is not exact.',
           'Return strict JSON only.'
         ].join(' ')
       },
@@ -524,6 +524,7 @@ async function main() {
 
   console.log('2) Calculating shared auto score out of 8...');
   const autoResult = await scoreAutoPoints(transcript, ACTIVE_QUESTION);
+  console.log('AUTO SCORE RESULT:', JSON.stringify(autoResult, null, 2));
   fs.writeFileSync(
     path.join(OUTPUT, 'auto-score.json'),
     JSON.stringify(autoResult, null, 2),
@@ -536,6 +537,7 @@ async function main() {
   for (const judge of JUDGES) {
     console.log(`3) Scoring discretion for ${judge.displayName}...`);
     const discretion = await scoreJudgeDiscretion(judge, transcript, ACTIVE_QUESTION, autoResult);
+    console.log(`${judge.displayName} DISCRETION RESULT:`, JSON.stringify(discretion, null, 2));
 
     const finalScore = autoResult.auto_score + discretion.discretion_score;
 
@@ -602,7 +604,7 @@ async function main() {
     total_score: totalScore,
     total_max: 33,
     final_video: finalOut,
-    result_summary: `Auto score ${autoResult.auto_score}/8. Final scores — Caty: ${judgeResults[0]?.score ?? 0}, Den: ${judgeResults[1]?.score ?? 0}, Tess: ${judgeResults[2]?.score ?? 0}.`
+    result_summary: `Question ${ACTIVE_QUESTION.key}. Auto score ${autoResult.auto_score}/8. Final scores — Caty: ${judgeResults[0]?.score ?? 0}, Den: ${judgeResults[1]?.score ?? 0}, Tess: ${judgeResults[2]?.score ?? 0}.`
   };
 
   fs.writeFileSync(path.join(OUTPUT, 'run-summary.json'), JSON.stringify(summary, null, 2), 'utf8');

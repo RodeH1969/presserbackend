@@ -51,74 +51,6 @@ export const DEFAULT_RUBRIC = {
 };
 
 export const QUESTION_BANK = {
-  round1: {
-    round: 1,
-    key: 'round1',
-    title: 'Why should you win this one-question speech battle?',
-    topic: 'Why should you win this one-question speech battle?',
-    rubric: DEFAULT_RUBRIC,
-    judgingNotes: [
-      'This is one question only.',
-      'Score using 8 auto points for keyword/concept coverage and 3 judge discretion points.',
-      'Judge personality should affect ONLY the 0-3 discretion score.',
-      'Do not let judge personality override factual coverage.',
-      'Coverage should be rewarded fairly whenever the contestant genuinely includes relevant concepts.'
-    ],
-    examples: [
-      {
-        label: 'Calibration note',
-        text:
-          'A weak answer has little substance. A mid-tier answer covers a few useful points. A strong answer covers several relevant ideas and delivers them clearly and persuasively.'
-      }
-    ]
-  },
-
-  scrambled_eggs: {
-    round: 1,
-    key: 'scrambled_eggs',
-    title: "Scrambled eggs. What's the secret to great scrambled eggs?",
-    topic: "Scrambled eggs. What's the secret to great scrambled eggs?",
-    rubric: DEFAULT_RUBRIC,
-    autoScoring: {
-      standardKeywords: [
-        'low heat',
-        'butter',
-        'stirring',
-        'folding',
-        'timing',
-        'soft',
-        'creamy',
-        'remove early',
-        'pan'
-      ],
-      advancedKeywords: [
-        'protein',
-        'curd formation',
-        'residual heat',
-        'custard texture',
-        'temperature control'
-      ],
-      scoringRules: [
-        'Count standard keywords/concepts as 1 point each when used relevantly.',
-        'Count advanced keywords/concepts as 2 points each when used relevantly.',
-        'Synonyms or clearly equivalent phrasing should count.',
-        'Cap total auto points at 8.'
-      ]
-    },
-    judgingNotes: [
-      'Reward relevant cooking logic and useful detail through the auto score.',
-      'Judge discretion should focus only on quality, clarity, flair, and persuasion.',
-      'Do not withhold auto points just because the answer is not elegant; if the concept is there, count it.'
-    ],
-    examples: [
-      { label: 'Poor', score: 2, text: 'Just cook them in a pan and stir until they’re done.' },
-      { label: 'Average', score: 5, text: 'Use butter, cook on medium heat, and stir so they don’t burn.' },
-      { label: 'Good', score: 8, text: 'Cook eggs slowly on low heat with butter, stirring gently to keep them soft. Take them off before they fully set so they don’t go dry.' },
-      { label: 'Great', score: 10, text: 'Great scrambled eggs come down to heat control, fat, and timing. Low heat prevents the proteins from tightening too quickly, butter adds richness, and constant folding creates soft curds. Pulling them off early lets residual heat finish the job, keeping them creamy instead of rubbery.' },
-      { label: 'Elite', score: 11, text: 'Perfect scrambled eggs are less about cooking and more about restraint. Start with eggs and butter in a cold pan, then coax them slowly over low heat, folding rather than scrambling aggressively. Heat control keeps the proteins tender, fat carries flavour, and timing is everything—remove them just before they look done. The final texture should feel closer to a custard than breakfast, soft, glossy, and barely holding together.' }
-    ]
-  },
-
   fuel_prices: {
     round: 1,
     key: 'fuel_prices',
@@ -147,7 +79,8 @@ export const QUESTION_BANK = {
         'refining capacity',
         'margins',
         'global vs local markets',
-        'exchange rate impact'
+        'exchange rate impact',
+        'economics'
       ],
       scoringRules: [
         'Count standard keywords/concepts as 1 point each when used relevantly.',
@@ -159,7 +92,7 @@ export const QUESTION_BANK = {
     judgingNotes: [
       'Reward layered explanation through the auto score whenever the concepts are genuinely present.',
       'Judge discretion should capture how clear, persuasive, and well-put the answer is.',
-      'Example calibration: “Fuel prices are rising due to supply and demand, global oil prices, and a weak dollar affecting imports at the bowser.” should score 6 auto points before discretion.'
+      'Example calibration: “Fuel prices are rising due to supply and demand, global oil prices, and a weak dollar affecting imports at the bowser.” should score strongly on auto points before discretion.'
     ],
     examples: [
       { label: 'Poor', score: 2, text: 'Fuel prices are going up because everything is expensive.' },
@@ -171,7 +104,7 @@ export const QUESTION_BANK = {
   },
 
   immutable: {
-    round: 1,
+    round: 2,
     key: 'immutable',
     title: 'Give a definition and also use in a sentence the word "immutable".',
     topic: 'Give a definition and also use in a sentence the word "immutable".',
@@ -214,6 +147,52 @@ export const QUESTION_BANK = {
       { label: 'Good', score: 8, text: 'Immutable means not able to be changed or altered. Sentence: His belief in honesty was immutable.' },
       { label: 'Great', score: 10, text: 'Immutable refers to something that is fixed and unchangeable over time, either by nature or by rule. Sentence: In the system, the core data is immutable, ensuring it cannot be accidentally altered.' },
       { label: 'Elite', score: 11, text: 'Immutable describes something fundamentally resistant to change—whether due to physical law, logical necessity, or deliberate design. Sentence: Like the laws of mathematics, the system’s foundational rules were treated as immutable, forming a stable base that everything else could rely on.' }
+    ]
+  },
+
+  scrambled_eggs: {
+    round: 3,
+    key: 'scrambled_eggs',
+    title: "Scrambled eggs. What's the secret to great scrambled eggs?",
+    topic: "Scrambled eggs. What's the secret to great scrambled eggs?",
+    rubric: DEFAULT_RUBRIC,
+    autoScoring: {
+      standardKeywords: [
+        'low heat',
+        'butter',
+        'stirring',
+        'folding',
+        'timing',
+        'soft',
+        'creamy',
+        'remove early',
+        'pan'
+      ],
+      advancedKeywords: [
+        'protein',
+        'curd formation',
+        'residual heat',
+        'custard texture',
+        'temperature control'
+      ],
+      scoringRules: [
+        'Count standard keywords/concepts as 1 point each when used relevantly.',
+        'Count advanced keywords/concepts as 2 points each when used relevantly.',
+        'Synonyms or clearly equivalent phrasing should count.',
+        'Cap total auto points at 8.'
+      ]
+    },
+    judgingNotes: [
+      'Reward relevant cooking logic and useful detail through the auto score.',
+      'Judge discretion should focus only on quality, clarity, flair, and persuasion.',
+      'Do not withhold auto points just because the answer is not elegant; if the concept is there, count it.'
+    ],
+    examples: [
+      { label: 'Poor', score: 2, text: 'Just cook them in a pan and stir until they’re done.' },
+      { label: 'Average', score: 5, text: 'Use butter, cook on medium heat, and stir so they don’t burn.' },
+      { label: 'Good', score: 8, text: 'Cook eggs slowly on low heat with butter, stirring gently to keep them soft. Take them off before they fully set so they don’t go dry.' },
+      { label: 'Great', score: 10, text: 'Great scrambled eggs come down to heat control, fat, and timing. Low heat prevents the proteins from tightening too quickly, butter adds richness, and constant folding creates soft curds. Pulling them off early lets residual heat finish the job, keeping them creamy instead of rubbery.' },
+      { label: 'Elite', score: 11, text: 'Perfect scrambled eggs are less about cooking and more about restraint. Start with eggs and butter in a cold pan, then coax them slowly over low heat, folding rather than scrambling aggressively. Heat control keeps the proteins tender, fat carries flavour, and timing is everything—remove them just before they look done. The final texture should feel closer to a custard than breakfast, soft, glossy, and barely holding together.' }
     ]
   }
 };

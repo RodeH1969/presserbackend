@@ -10,7 +10,6 @@ const ROOT = process.cwd();
 const OUTPUT = path.join(ROOT, 'output');
 fs.mkdirSync(OUTPUT, { recursive: true });
 
-// Hardcode the real bucket name from Supabase Storage
 const INPUT_BUCKET = 'recordings';
 const OUTPUT_BUCKET = 'recordings';
 
@@ -63,6 +62,13 @@ async function createSignedOutputUrl(storagePath, expiresIn = 60 * 60 * 24 * 7) 
   return data.signedUrl;
 }
 
+function getQuestionKeyForRound(round) {
+  if (round === 1) return 'fuel_prices';
+  if (round === 2) return 'immutable';
+  if (round === 3) return 'scrambled_eggs';
+  return 'fuel_prices';
+}
+
 export async function judgeOneSubmission(attemptId) {
   console.log(`Judging attempt ${attemptId}...`);
 
@@ -94,7 +100,9 @@ export async function judgeOneSubmission(attemptId) {
   }
 
   const round = attempt.round_number || 1;
-  const questionKey = `round${round}`;
+  const questionKey = getQuestionKeyForRound(round);
+
+  console.log('Using question key for this attempt:', { round, questionKey });
 
   const inputStoragePath = attempt.recording_path;
   if (!inputStoragePath) {
@@ -185,6 +193,7 @@ export async function judgeOneSubmission(attemptId) {
     contestantId: attempt.contestant_id || null,
     contestantEmail: contestant?.email || null,
     round,
+    questionKey,
     passed,
     totalScore,
     maxScore,
